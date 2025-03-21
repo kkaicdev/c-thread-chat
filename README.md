@@ -1,6 +1,6 @@
 # c-thread-chat
 TCP/IP chat with multi-threads made purely in C. 
 
-When compiling with gcc, it is required to use -lws2_32.
+this script was compiled with GCC, using the -l parameter to load the ws2_32 library.
 
-(only windows)
+> ws2_32.dll is a dynamic link library (DLL) in Windows that implements the Windows Sockets 2 (Winsock 2) API. It provides a standardized interface for network communication, enabling applications to interact with TCP/IP, UDP, and other network protocols.

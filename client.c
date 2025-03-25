@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <winsock2.h>
 #include <string.h>
-#include <process.h>
+#include <windows.h>
 
 #define PORT 8080
 #define SERVER_IP "" // <--- IP SERVER
@@ -13,7 +13,8 @@ SOCKET create_and_connect_socket(struct sockaddr_in *server);
 int get_client_name(char *client_name);
 int send_message(SOCKET sock, const char *message);
 void handle_error(const char *msg, SOCKET sock);
-unsigned __stdcall receive_messages(void *sock_ptr);
+DWORD WINAPI receive_messages(LPVOID sock_ptr);
+void console_color(WORD color);
 
 int main() {
     SOCKET sock;
@@ -47,16 +48,16 @@ int main() {
         return 1;
     }
 
-    unsigned int thread_id;
-    HANDLE thread_handle = (HANDLE)_beginthreadex(NULL, 0, receive_messages, (void *)&sock, 0, &thread_id);
+    HANDLE thread_handle = CreateThread(NULL, 0, receive_messages, (LPVOID)&sock, 0, NULL);
     if (thread_handle == NULL) handle_error("Error creating thread to receive messages", sock);
 
     while (1) {
+        console_color(FOREGROUND_BLUE | FOREGROUND_INTENSITY);
         printf("Enter your message: ");
+        fflush(stdout);
         fgets(message, sizeof(message), stdin);
         
-        if (strncmp(message, "sair", 4) == 0 || strncmp(message, "disconnect", 10) == 0) {
-            send_message(sock, "disconnect");
+        if (strncmp(message, "exit", 4) == 0 || strncmp(message, "disconnect", 10) == 0) {
             break;
         }
         send_message(sock, message);
@@ -68,34 +69,16 @@ int main() {
     return 0;
 }
 
+int init_winsock() {
+    WSADATA wsaData;
+    return WSAStartup(MAKEWORD(2, 2), &wsaData) == 0;
+}
+
 void handle_error(const char *msg, SOCKET sock) {
     printf("%s: %d\n", msg, WSAGetLastError());
     if (sock != INVALID_SOCKET) closesocket(sock);
     WSACleanup();
     exit(1);
-}
-
-unsigned __stdcall receive_messages(void *sock_ptr) {
-    SOCKET sock = *(SOCKET *)sock_ptr;
-    char buffer[BUFFER_SIZE];
-
-    while (1) {
-        int n = recv(sock, buffer, sizeof(buffer), 0);
-        if (n <= 0) {
-            if (n == 0) printf("Connection closed by the server.\n");
-            else handle_error("Error receiving message", sock);
-            break;
-        }
-        buffer[n] = '\0';
-        printf("\nMessage received:\n%s\n", buffer);
-        printf("Enter your message: ");
-    }
-    return 0;
-}
-
-int init_winsock() {
-    WSADATA wsaData;
-    return WSAStartup(MAKEWORD(2, 2), &wsaData) == 0;
 }
 
 SOCKET create_and_connect_socket(struct sockaddr_in *server) {
@@ -105,7 +88,29 @@ SOCKET create_and_connect_socket(struct sockaddr_in *server) {
     return sock;
 }
 
+DWORD WINAPI receive_messages(LPVOID sock_ptr) {
+    SOCKET sock = *(SOCKET *)sock_ptr;
+    char buffer[BUFFER_SIZE];
+    while (1) {
+        int n = recv(sock, buffer, sizeof(buffer), 0);
+        if (n <= 0) {
+            if (n == 0) printf("Connection closed by the server.\n");
+            else handle_error("Error receiving message", sock);
+            break;
+        }
+        buffer[n] = '\0';
+        buffer[strcspn(buffer, "\n")] = '\0';
+
+        printf("\rMessage received. %s\n", buffer);
+        printf("Enter your message: ");
+        fflush(stdout);
+        
+    }
+    return 0;
+}
+
 int get_client_name(char *client_name) {
+    console_color(FOREGROUND_GREEN | FOREGROUND_INTENSITY);
     printf("Enter your name: ");
     fgets(client_name, MAX_NAME_LENGTH + 1, stdin);
     client_name[strcspn(client_name, "\n")] = 0;
@@ -127,4 +132,8 @@ int send_message(SOCKET sock, const char *message) {
         return 0;
     }
     return 1;
+}
+
+void console_color(WORD color) {
+    SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), color);
 }

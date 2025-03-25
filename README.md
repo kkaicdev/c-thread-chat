@@ -1,7 +1,7 @@
 # c-thread-chat
 TCP/IP chat with multi-threads made purely in C. 
 
-![demo](https://imgur.com/a/9qrKH0T)
+![demo](<blockquote class="imgur-embed-pub" lang="en" data-id="a/9qrKH0T" data-context="false" ><a href="//imgur.com/a/9qrKH0T"></a></blockquote><script async src="//s.imgur.com/min/embed.js" charset="utf-8"></script>)
 
 this script was compiled with GCC, using the -l parameter to load the ws2_32 library.
 

@@ -6,9 +6,8 @@
 
 #define PORT 8080
 #define BUFFER_SIZE 1024
-#define MAX_CLIENTS 2 
+#define MAX_CLIENTS 3
 
-// Estrutura do cliente
 typedef struct {
     SOCKET socket;
     HANDLE thread_handle;
@@ -35,22 +34,35 @@ int main() {
     int client_len = sizeof(client_addr);
 
     mutex = CreateMutex(NULL, FALSE, NULL);
-    if (!mutex) { printf("Failed to create mutex\n"); return -1; }
+    if (!mutex) { 
+        printf("Failed to create mutex\n"); 
+        return -1; 
+    }
 
-    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) { print_winsock_error(WSAGetLastError()); return -1; }
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) { 
+        print_winsock_error(WSAGetLastError()); 
+        return -1; 
+    }
 
     server_socket = socket(AF_INET, SOCK_STREAM, 0);
-    if (server_socket == INVALID_SOCKET) { print_winsock_error(WSAGetLastError()); return -1; }
+    if (server_socket == INVALID_SOCKET) { 
+        print_winsock_error(WSAGetLastError()); 
+        return -1; 
+    }
 
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
     server_addr.sin_port = htons(PORT);
 
     if (bind(server_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) == SOCKET_ERROR) { 
-        print_winsock_error(WSAGetLastError()); return -1; 
+        print_winsock_error(WSAGetLastError()); 
+        return -1; 
     }
 
-    if (listen(server_socket, MAX_CLIENTS) == SOCKET_ERROR) { print_winsock_error(WSAGetLastError()); return -1; }
+    if (listen(server_socket, MAX_CLIENTS) == SOCKET_ERROR) { 
+        print_winsock_error(WSAGetLastError()); 
+        return -1; 
+    }
 
     printf("Server is online...\n");
 
@@ -80,6 +92,12 @@ int main() {
             if (is_name_unique(client_name)) {
                 lock_client_list();
                 Client *new_client = malloc(sizeof(Client));
+                if (!new_client) {
+                    printf("Memory allocation failed.\n");
+                    closesocket(client_socket);
+                    unlock_client_list();
+                    continue;
+                }
                 strncpy(new_client->name, client_name, sizeof(new_client->name) - 1);
                 new_client->socket = client_socket;
                 new_client->id = client_count + 1;
@@ -90,8 +108,13 @@ int main() {
                 char welcome_message[BUFFER_SIZE];
                 snprintf(welcome_message, BUFFER_SIZE, "Client %s has joined!\n", client_name);
                 broadcast_message(welcome_message, client_socket);
-                
-                CreateThread(NULL, 0, handle_client, (LPVOID)new_client, 0, NULL);
+
+                new_client->thread_handle = CreateThread(NULL, 0, handle_client, (LPVOID)new_client, 0, NULL);
+                if (new_client->thread_handle == NULL) {
+                    printf("Failed to create thread for client %s.\n", client_name);
+                    closesocket(client_socket);
+                    remove_client(client_count - 1);
+                }
             } else {
                 printf("Name in use. Disconnecting...\n");
                 closesocket(client_socket);
@@ -154,21 +177,26 @@ void broadcast_message(const char *message, SOCKET sender_socket) {
 
 void remove_client(int client_index) {
     if (client_index >= 0 && client_index < client_count) {
+        lock_client_list();
         closesocket(clients[client_index]->socket);
         free(clients[client_index]);
-
-        // Shift clients in the list
-        for (int i = client_index; i < client_count - 1; i++) {
-            clients[i] = clients[i + 1];
-        }
+        
+        memmove(&clients[client_index], &clients[client_index + 1], (client_count - client_index - 1) * sizeof(Client*));
 
         clients[client_count - 1] = NULL;
         client_count--;
+        unlock_client_list();
     }
 }
 
-void lock_client_list() { WaitForSingleObject(mutex, INFINITE); }
-void unlock_client_list() { ReleaseMutex(mutex); }
+
+void lock_client_list() { 
+    WaitForSingleObject(mutex, INFINITE); 
+}
+
+void unlock_client_list() { 
+    ReleaseMutex(mutex); 
+}
 
 void print_winsock_error(int error_code) {
     char *msg = NULL;

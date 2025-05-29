@@ -10,6 +10,7 @@ Once the server is running, clients can connect as long as the maximum allowed n
 
 ## Project Structure
 
+```
 /chat_server
 ├── src/
 │ ├── main.c            # Main server application source code
@@ -31,6 +32,7 @@ Once the server is running, clients can connect as long as the maximum allowed n
 │ └── client_net.h      # Header file for network functions
 │ └── client_utils.h    # Header file for utility functions
 └── Makefile            # Build instructions to compile the project
+```
 
 ### File and Directory Descriptions
 

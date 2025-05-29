@@ -56,6 +56,7 @@ Once the server is running, clients can connect as long as the maximum allowed n
 
 Both the server and client directories include a Makefile, which can be compiled using `mingw32-make` (on Windows).
 
+```
 To build the server:
 cd chat_server
 mingw32-make
@@ -68,3 +69,4 @@ Make sure mingw32-make is installed and available in your system's PATH.
 
 To remove all compiled object files and the executable (clean the build), run:
 mingw32-make clean
+```
